@@ -1,0 +1,36 @@
+name: Deploy home server
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/deploy.yml
+      - compose.yaml
+      - default.conf
+      - Dockerfile
+      - restart.sh
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: homeserver-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Build and deploy
+    runs-on:
+      - self-hosted
+      - linux
+      - homeserver
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Deploy Nginx
+        run: ./restart.sh

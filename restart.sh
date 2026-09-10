@@ -1,27 +1,44 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -Eeuo pipefail
 
-CONTAINER_NAME="homeserver_nginx"
-IMAGE_NAME="homeserver_nginx"
+script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+cd "$script_dir"
 
-if [ "$(docker ps -q -f name=$CONTAINER_NAME)" ]; then
-    echo "Stopping the container: $CONTAINER_NAME"
-    docker stop $CONTAINER_NAME
+if ! command -v docker >/dev/null 2>&1; then
+    echo "Docker is not installed or is not in PATH." >&2
+    exit 1
 fi
 
-if [ "$(docker ps -a -q -f name=$CONTAINER_NAME)" ]; then
-    echo "Removing the container: $CONTAINER_NAME"
-    docker rm $CONTAINER_NAME
+if ! docker info >/dev/null 2>&1; then
+    echo "The Docker daemon is unavailable to the current user." >&2
+    exit 1
 fi
 
-if [ "$(docker images -q $IMAGE_NAME)" ]; then
-    echo "Removing the image: $IMAGE_NAME"
-    docker rmi $IMAGE_NAME
+if ! docker compose version >/dev/null 2>&1; then
+    echo "Docker Compose v2 is required." >&2
+    exit 1
 fi
 
-echo "Building the image: $IMAGE_NAME"
-docker build -t $IMAGE_NAME .
+echo "Building and deploying homeserver_nginx..."
+docker compose build
 
-echo "Running the container: $CONTAINER_NAME"
-docker run -d --name $CONTAINER_NAME -p 80:80 $IMAGE_NAME
+container_name="homeserver_nginx"
+compose_project="homeserver_nginx"
 
-echo "Done!"
+if docker container inspect "$container_name" >/dev/null 2>&1; then
+    managed_by="$(
+        docker container inspect \
+            --format '{{ index .Config.Labels "com.docker.compose.project" }}' \
+            "$container_name" 2>/dev/null || true
+    )"
+
+    if [[ "$managed_by" != "$compose_project" ]]; then
+        echo "Replacing the legacy container: $container_name"
+        docker container rm --force "$container_name"
+    fi
+fi
+
+docker compose up --detach --no-build --remove-orphans --wait
+docker compose ps
+
+echo "Deployment completed successfully."
