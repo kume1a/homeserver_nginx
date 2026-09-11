@@ -21,3 +21,18 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: homeserver_cloudflared
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: "${CLOUDFLARE_TUNNEL_TOKEN:?CLOUDFLARE_TUNNEL_TOKEN is required}"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
