@@ -1,0 +1,23 @@
+name: homeserver_nginx_legacy
+
+services:
+  nginx:
+    build:
+      context: .
+    image: homeserver_nginx:latest
+    container_name: homeserver_nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
